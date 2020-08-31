@@ -21,7 +21,7 @@ exports.create = async (req, res) => {
     })
     .exec();
 
-  if (!cart) return res.status(400).json({ msg: "Carrinho inválido" });
+  if (!cart) return res.status(400).json({ msg: "Carrinho vazio" });
 
   const totalAmount = () => {
     const total = cart.skus.map((sku) => {

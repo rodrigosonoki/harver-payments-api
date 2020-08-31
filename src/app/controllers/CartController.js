@@ -5,122 +5,117 @@ const { sum } = require("../utils");
 
 exports.add = async (req, res) => {
   const { skus } = req.body;
+  const { sessionID: session } = req;
 
-  if (req.customer === "") {
+  const getCart = async () => {
+    if (req.customer) {
+      const cart = await Cart.findOne(
+        {
+          customer: req.customer.id,
+          isActive: true,
+        },
+        {
+          customer: 0,
+        }
+      );
+      return cart;
+    }
+
     const cart = await Cart.findOne({
       session: req.sessionID,
     });
+    return cart;
+  };
 
-    if (!cart) {
+  const createCart = async () => {
+    if (req.customer) {
       const newCart = await new Cart({
-        session: req.sessionID,
-        skus,
-      });
-      newCart.save();
-      return res.status(200).json({ cart: newCart.skus });
-    } else {
-      try {
-        const cartSkus = await sum(skus, cart.skus);
-        cart.skus = cartSkus;
-        cart.save();
-        return res.status(200).json({ cart: cart.skus });
-      } catch (err) {
-        return res.status(400).json(err);
-      }
-    }
-  } else {
-    const cart = await Cart.findOne(
-      {
-        customer: req.customer.id,
-        isActive: true,
-      },
-      {
-        customer: 0,
-      }
-    );
-
-    if (!cart) {
-      const newCart = await new Cart({
-        session: req.sessionID,
+        session,
         skus,
         customer: req.customer.id,
       });
-      newCart.save();
-      return res.status(200).json({ cart: newCart.skus });
-    } else {
-      const cartSkus = await sum(skus, cart.skus);
-      cart.skus = cartSkus;
-
-      cart.save();
-      return res.status(200).json({ cart: cart.skus });
+      return newCart;
     }
+
+    const newCart = await new Cart({
+      session: req.sessionID,
+      skus,
+    });
+    return newCart;
+  };
+
+  const cart = await getCart();
+
+  if (!cart) {
+    const newCart = await createCart();
+    newCart.save();
+    return res.status(200).json({ cart: newCart.skus });
   }
+
+  const cartSkus = await sum(skus, cart.skus);
+  cart.skus = cartSkus;
+  cart.save();
+  return res.status(200).json({ cart: cart.skus });
 };
 
 exports.get = async (req, res) => {
-  if (req.customer === "") {
+  const getCart = async () => {
+    if (req.customer) {
+      const cart = await Cart.findOne({
+        customer: req.customer.id,
+        isActive: true,
+      });
+      return cart;
+    }
+
     const cart = await Cart.findOne({
       session: req.sessionID,
     });
-    return res.status(200).json({ cart });
-  }
+    return cart;
+  };
 
-  const cart = await Cart.findOne({
-    customer: req.customer.id,
-    isActive: true,
-  });
-
+  const cart = await getCart();
   return res.status(200).json({ cart });
 };
 
 exports.remove = async (req, res) => {
   const { sku } = req.body;
 
-  if (req.customer === "") {
+  const filterProduct = (arr) => {
+    const skus = arr.filter(function (obj) {
+      return obj.sku != sku;
+    });
+
+    return skus;
+  };
+
+  const getCart = async () => {
+    if (req.customer) {
+      const cart = await Cart.findOne(
+        {
+          customer: req.customer.id,
+          isActive: true,
+        },
+        {
+          customer: 0,
+        }
+      );
+      return cart;
+    }
+
     const cart = await Cart.findOne({
       session: req.sessionID,
     });
+    return cart;
+  };
 
-    if (!cart) {
-      return res.status(200).json({ cart: null });
-    } else {
-      try {
-        //REMOVE REQ.BODY.SKU FROM CART.SKUS
-        const skus = cart.skus.filter(function (obj) {
-          return obj.sku != sku;
-        });
+  const cart = await getCart();
 
-        cart.skus = skus;
+  if (!cart) return res.status(200).json({ cart: null });
 
-        cart.save();
-        return res.status(200).json({ cart });
-      } catch (err) {
-        return res.status(400).json(err);
-      }
-    }
-  } else {
-    const cart = await Cart.findOne(
-      {
-        customer: req.customer.id,
-        isActive: true,
-      },
-      {
-        customer: 0,
-      }
-    );
+  const skus = filterProduct(cart.skus);
+  cart.skus = skus;
+  cart.save();
 
-    if (!cart) {
-      return res.status(200).json({ cart: null });
-    } else {
-      //REMOVE REQ.BODY.SKU FROM CART.SKUS
-      const skus = cart.skus.filter(function (obj) {
-        return obj.sku != sku;
-      });
-
-      cart.skus = skus;
-
-      cart.save();
-      return res.status(200).json({ cart });
-    }
-  }
+  return res.status(200).json({ cart });
 };

@@ -18,7 +18,7 @@ exports.checkIfCustomer = (req, res, next) => {
   const token = req.header("auth-token");
   if (!token) {
     try {
-      req.customer = "";
+      req.customer = null;
       next();
     } catch (err) {
       return res.status(400).json(err);
